@@ -1,0 +1,1146 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>捷運發車時刻表</title>
+    
+    <script src="data/mrt_o_data.js"></script>
+    <script src="data/mrt_r_data.js"></script>
+    <script src="data/mrt_g_data.js"></script>
+    <script src="data/mrt_bl_data.js"></script>
+    <script src="data/mrt_br_data.js"></script>
+    <script src="data/mrt_y_data.js"></script>
+    <script src="data/mrt_ty_data.js"></script>
+    
+    <script src="config.js"></script>
+    
+    <script src="data/meme_by_VulcandDays.js"></script> 
+
+    <style>
+        :root {
+            --primary-color: #555;
+            --bg-color: #f5f5f5;
+            --text-dark: #333;
+            --status-red: #d32f2f;
+            --menu-width: 240px;
+        }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; 
+            background: var(--bg-color); 
+            margin: 0; 
+            padding: 0; 
+            color: var(--text-dark); 
+            overflow-x: hidden; 
+        }
+        
+        /* === Header === */
+        .header { 
+            background-color: var(--primary-color); 
+            color: white; 
+            padding: 12px 0; 
+            text-align: center; 
+            position: sticky; 
+            top: 0; 
+            z-index: 100;
+            transition: background-color 0.4s ease; 
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 24px;
+        }
+        .header h1 { margin: 0; font-size: 1.1rem; }
+        
+        .menu-btn {
+            position: absolute;
+            left: 15px;
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 0 10px;
+            line-height: 1;
+        }
+
+        .day-badge { 
+            position: absolute; right: 15px; top: 50%; transform: translateY(-50%);
+            background: rgba(255,255,255,0.25); padding: 3px 8px; border-radius: 4px; font-size: 0.75rem; 
+        }
+
+        /* === Side Menu === */
+        .menu-backdrop {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5); z-index: 998;
+            opacity: 0; pointer-events: none; transition: opacity 0.3s;
+        }
+        .menu-backdrop.active { opacity: 1; pointer-events: auto; }
+
+        .side-menu {
+            position: fixed; top: 0; left: calc(var(--menu-width) * -1);
+            width: var(--menu-width); height: 100%;
+            background: #fff; z-index: 999;
+            transition: left 0.3s ease;
+            box-shadow: 2px 0 8px rgba(0,0,0,0.1);
+            display: flex; 
+            flex-direction: column;
+        }
+        .side-menu.open { left: 0; }
+
+        .menu-close-btn-wrapper {
+            background-color: #f0f0f0;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            position: relative;
+            border-bottom: 1px solid #ddd;
+        }
+        .menu-close-btn {
+            position: absolute;
+            left: 15px;
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 0 10px;
+            line-height: 1;
+            color: #333;
+        }
+        .menu-title {
+            width: 100%;
+            text-align: center;
+            font-weight: bold;
+            font-size: 1.2rem;
+        }
+
+        .menu-content {
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .menu-footer {
+            padding: 20px 15px;
+            background: #fafafa;
+            border-top: 1px solid #eee;
+            font-size: 0.85rem;
+            color: #666;
+            text-align: center;
+            margin-top: auto; 
+        }
+
+        .view-count-label {
+            display: inline-block;
+            margin-bottom: 5px;
+        }
+
+        .counter-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-family: 'Courier New', Courier, monospace;
+            font-weight: bold;
+            font-size: 1rem;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            min-width: 30px;
+            transition: transform 0.2s;
+        }
+        .counter-badge.loading {
+            background: #ccc;
+            color: #888;
+        }
+        .counter-badge:hover {
+            transform: scale(1.1);
+        }
+
+        .feature-guide {
+            padding: 15px 20px;
+            border-bottom: 1px solid #eee;
+            cursor: pointer;
+            background: #fff;
+            color: #007bff;
+            font-weight: bold;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .feature-guide:hover { background: #f9f9f9; }
+
+        .favorites-section {
+            border-bottom: 1px solid #eee;
+            background: #fffaf0; 
+        }
+        .favorites-header {
+            padding: 15px 20px;
+            font-weight: bold;
+            color: #d48806;
+            display: flex; align-items: center; gap: 8px;
+        }
+
+        .menu-line-item { border-bottom: 1px solid #eee; }
+        .line-header {
+            padding: 15px 20px;
+            cursor: pointer;
+            display: flex; justify-content: space-between; align-items: center;
+            font-weight: bold;
+            background: #fff;
+        }
+        .line-header:hover { background: #fafafa; }
+        .line-indicator { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 10px; }
+        .arrow { transition: transform 0.3s; font-size: 0.8rem; color: #999; }
+        .menu-line-item.expanded .arrow { transform: rotate(90deg); }
+
+        .station-list { display: none; background: #f9f9f9; padding: 0; margin: 0; list-style: none; }
+        .menu-line-item.expanded .station-list { display: block; }
+        
+        .station-list li, .favorites-list li {
+            padding: 12px 10px 12px 20px;
+            cursor: pointer;
+            border-bottom: 1px solid #eee;
+            font-size: 0.95rem;
+            color: #555;
+            display: flex; 
+            justify-content: space-between;
+            align-items: center;
+        }
+        .station-list li:hover, .favorites-list li:hover { background: #eee; color: #000; }
+        
+        .favorites-list { padding: 0; margin: 0; list-style: none; display: block; }
+
+        .star-btn {
+            font-size: 1.2rem;
+            line-height: 1;
+            padding: 0 10px;
+            color: #ccc;
+            transition: color 0.2s, transform 0.1s;
+        }
+        .star-btn:active { transform: scale(1.2); }
+        .star-btn.active { color: #ffc107; }
+
+
+        /* === Station Info === */
+        .station-info-bar {
+            background: #fff;
+            padding: 12px 20px;
+            border-bottom: 1px solid #eee;
+            position: sticky;
+            top: 45px;
+            z-index: 90;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .station-left { display: flex; align-items: center; gap: 10px; }
+        .station-name { font-size: 1.5rem; font-weight: bold; }
+        .gps-status { font-size: 0.8rem; color: #888; text-align: right; line-height: 1.4; }
+
+        .badges-container { display: flex; gap: 6px; }
+        .station-id-btn { 
+            font-size: 0.9rem; font-weight: bold; color: white; 
+            padding: 4px 8px; border-radius: 6px; cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            transition: transform 0.1s;
+        }
+        .station-id-btn:active { transform: scale(0.95); opacity: 0.8; }
+
+        /* === Scroller & Cards === */
+        .cards-scroller {
+            display: flex;
+            flex-wrap: nowrap;
+            overflow-x: auto;
+            scroll-snap-type: x mandatory;
+            --card-real-width: min(85vw, 400px);
+            padding-inline: calc(50vw - (var(--card-real-width) / 2));
+            padding-top: 20px;
+            padding-bottom: 40px;
+            gap: 15px; 
+            -webkit-overflow-scrolling: touch; 
+            scroll-behavior: smooth;
+            min-height: 60vh;
+        }
+        .cards-scroller::-webkit-scrollbar { display: none; }
+
+        .line-card {
+            flex: 0 0 min(85vw, 400px);
+            max-width: 400px;
+            scroll-snap-align: center;
+            background: #fff;
+            border-radius: 16px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            border-top: 6px solid #ccc;
+            position: relative;
+        }
+        .direction-buttons { 
+            display: flex; gap: 10px; padding: 15px; 
+            background: #fafafa; border-bottom: 1px solid #eee; 
+        }
+        .btn { 
+            flex: 1; padding: 10px; border: none; border-radius: 8px; 
+            background: #e0e0e0; cursor: pointer; font-weight: bold; 
+            color: #666; transition: 0.2s; 
+        }
+        .btn.active { color: white; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+        
+        .time-list { list-style: none; padding: 0; margin: 0; min-height: 250px; }
+        .time-item { 
+            display: flex; justify-content: space-between; align-items: center; 
+            padding: 14px 20px; border-bottom: 1px solid #f5f5f5; 
+        }
+        .time-val { 
+            font-size: 1.3rem; font-weight: bold; font-family: monospace; 
+            letter-spacing: 1px; color: #333; 
+        }
+        .time-status { font-weight: bold; font-size: 0.95rem; color: #555; }
+        .status-urgent { color: var(--status-red); }
+
+        .dest-tag { font-size: 0.65rem; padding: 1px 6px; border-radius: 4px; margin-left: 8px; vertical-align: middle; display: inline-block; cursor: default; }
+        
+        /* Orange Line Tags */
+        .tag-huilong { background: #ffebee; color: #c62828; border: 1px solid #ffcdd2; }
+        .tag-luzhou { background: #e3f2fd; color: #1565c0; border: 1px solid #bbdefb; }
+        .tag-return { background: #7f8c8d; color: white; border: 1px solid #666; }
+
+        /* Airport MRT Tags */
+        .tag-clickable { cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+        .tag-clickable:hover { opacity: 0.8; }
+        
+        /* 修正與新增的車種顏色 */
+        .tag-ty-express { background: #8e44ad; color: white; border: 1px solid #9b59b6; } /* 直達車 (紫) */
+        .tag-ty-express-plus { background: #4a235a; color: #f1c40f; border: 1px solid #f1c40f; } /* 尖峰增停 (深紫+黃字) */
+        .tag-ty-commuter-skip { background: #e67e22; color: white; border: 1px solid #d35400; } /* 跳站普通 (橘) */
+        .tag-ty-airport { background: #16a085; color: white; border: 1px solid #1abc9c; } /* 往機場 (綠) */
+        .tag-ty-commuter { background: #2980b9; color: white; border: 1px solid #2980b9; } /* 普通車 (藍) - 新增此行 */
+        
+        .empty-msg { padding: 40px; text-align: center; color: #aaa; }
+
+        /* === Meme === */
+        .meme-container {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            margin-top: 20px;
+            text-align: center;
+        }
+        .meme-title { font-size: 1rem; color: #666; margin-bottom: 10px; font-weight: bold; }
+        .meme-img { max-width: 90%; max-height: 50vh; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); object-fit: contain; background: #eee; min-height: 200px; }
+
+        /* === Tour Overlay === */
+        .tour-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            z-index: 2000;
+            pointer-events: auto;
+            display: none;
+            cursor: pointer;
+        }
+        .tour-overlay.active { display: block; }
+
+        .tour-spotlight {
+            position: absolute;
+            border-radius: 8px;
+            box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.75);
+            transition: all 0.4s ease;
+            pointer-events: none;
+            border: 2px solid #ffd700;
+        }
+        
+        .tour-text-box {
+            position: absolute;
+            color: white;
+            max-width: 80%;
+            width: 300px;
+            font-size: 1.1rem;
+            text-align: center;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+            pointer-events: none;
+            transition: all 0.4s ease;
+            font-weight: bold;
+        }
+        .tour-arrow { font-size: 1.5rem; display: block; margin: 5px 0; color: #ffd700; }
+        
+        .tour-tap-hint {
+            position: absolute;
+            bottom: 30px;
+            width: 100%;
+            text-align: center;
+            color: rgba(255,255,255,0.6);
+            font-size: 0.9rem;
+            pointer-events: none;
+        }
+
+        /* === Popup Modal for Stops === */
+        .modal-overlay {
+            display: none;
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.6); z-index: 3000;
+            justify-content: center; align-items: center;
+        }
+        .modal-overlay.active { display: flex; animation: fadeIn 0.2s; }
+        .modal-card {
+            background: white; padding: 20px; border-radius: 12px;
+            width: 85%; max-width: 360px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+            position: relative; transform: scale(0.95);
+            transition: transform 0.2s;
+        }
+        .modal-overlay.active .modal-card { transform: scale(1); }
+        .modal-title { font-weight: bold; font-size: 1.1rem; margin-bottom: 10px; color: #333; border-bottom: 1px solid #eee; padding-bottom: 8px; }
+        .modal-body { font-size: 0.95rem; line-height: 1.6; color: #555; white-space: pre-line; }
+        .modal-close-btn {
+            margin-top: 15px; width: 100%; padding: 10px; background: #f0f0f0; border: none; border-radius: 8px; 
+            cursor: pointer; font-weight: bold; color: #555; transition: background 0.2s;
+        }
+        .modal-close-btn:active { background: #e0e0e0; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+    </style>
+</head>
+<body>
+
+    <div class="tour-overlay" id="tour-overlay" onclick="nextTourStep()">
+        <div class="tour-spotlight" id="tour-spotlight"></div>
+        <div class="tour-text-box" id="tour-text-box">
+            <span id="tour-content"></span>
+        </div>
+        <div class="tour-tap-hint">點擊任意處繼續 (Tap anywhere to continue)</div>
+    </div>
+
+    <div class="modal-overlay" id="stops-modal" onclick="closeStopsModal(event)">
+        <div class="modal-card" onclick="event.stopPropagation()">
+            <div class="modal-title" id="modal-title">車種資訊</div>
+            <div class="modal-body" id="modal-content">...</div>
+            <button class="modal-close-btn" onclick="closeStopsModal()">關閉</button>
+        </div>
+    </div>
+
+    <div class="menu-backdrop" id="menu-backdrop" onclick="toggleMenu()"></div>
+    <div class="side-menu" id="side-menu">
+        <div class="menu-close-btn-wrapper">
+            <div class="menu-close-btn" onclick="toggleMenu()">☰</div>
+            <div class="menu-title">選單</div>
+        </div>
+        
+        <div class="menu-content">
+            <div class="feature-guide" onclick="startTour()">
+                新手導覽
+            </div>
+            <div id="menu-lines-container"></div>
+        </div>
+
+        <div class="menu-footer">
+            <span class="view-count-label">瀏覽人次</span>
+            <br>
+            <span id="view-counter" class="counter-badge loading">...</span>
+        </div>
+    </div>
+
+    <div class="header" id="ui-header">
+        <div class="menu-btn" onclick="toggleMenu()">☰</div>
+        <h1 id="ui-line-name">捷運時刻表</h1>
+        <div class="day-badge" id="day-type-badge">...</div>
+    </div>
+
+    <div class="station-info-bar">
+        <div class="station-left">
+            <div class="badges-container" id="ui-badges"></div>
+            <div class="station-name" id="ui-station-name">...</div>
+        </div>
+        <div class="gps-status" id="status-text">定位中...</div>
+    </div>
+
+    <div class="cards-scroller" id="scroller">
+        <div class="meme-container" id="loading-meme-area">
+            <div class="meme-title">每日一梗圖 (?)</div>
+            <img src="" class="meme-img" id="meme-display" alt="讀取中...">
+        </div>
+    </div>
+
+<script>
+    // ==========================================
+    // 設定
+    // ==========================================
+    const MIN_LOADING_MS = 3000; 
+    const AUTO_REFRESH_SEC = 60; 
+
+    // 機場捷運停靠站資訊 (已展開所有站名) 
+    const TY_STOPS_DATA = { "TY_EXP": "直達車\n停靠站：\nA1 台北車站\nA3 新北產業園區\nA8 長庚醫院\nA12 機場第一航廈\nA13 機場第二航廈", 
+        "TY_EXP_P": "尖峰增停直達車\n停靠站：\nA1 台北車站\nA3 新北產業園區\nA8 長庚醫院\nA12 機場第一航廈\nA13 機場第二航廈\nA18 高鐵桃園站\nA21 環北站", 
+        "TY_COM_S": "尖峰跳站普通車\n停靠站：\nA21 環北站\nA18 高鐵桃園站\nA13 機場第二航廈\nA12 機場第一航廈\n(以下每站停靠)\nA9 林口站\nA8 長庚醫院\nA7 體育大學\nA6 泰山貴和\nA5 泰山站\nA4 新莊副都心\nA3 新北產業園區\nA2 三重站\nA1 台北車站", 
+        "TY_APT": "機場加班車\n行駛區間 (沿途每站停靠)：\n往機場：A1 台北車站 ➔ A13 機場第二航廈\n往台北：A22 老街溪站 ➔ A12 機場第一航廈", 
+        "TY_COM": "普通車\n停靠站：\nA1 台北車站 至 A22 老街溪站\n(全線沿途每站停靠)" };
+
+    const MENU_MAPPING = [
+        { key: 'orange', label: '中和新蘆線' },
+        { key: 'red',    label: '淡水信義線' },
+        { key: 'blue',   label: '板南線' },
+        { key: 'green',  label: '松山新店線' },
+        { key: 'brown',  label: '文湖線' },
+        { key: 'yellow', label: '環狀線' },
+        { key: 'purple', label: '機場捷運' }
+    ];
+
+    const LOADING_TEXTS = [
+        "正在幫你追捷運...", "正在計算要不要用跑的...", "正在跟站長討時刻表...",
+        "正在定位你的悠遊卡...", "衛星正在瞄準車站...", "捷運來接你了喔~~",
+        "我買TPASS的時候\n沒跟我說會看到這個", "再等一下，車還沒開走..."
+    ];
+
+    let loadStartTime = 0; 
+    let isFirstLoad = true; 
+    let favoriteStations = []; 
+
+    function getFunLoading() {
+        return LOADING_TEXTS[Math.floor(Math.random() * LOADING_TEXTS.length)];
+    }
+
+    // ==========================================
+    // 1. 初始化
+    // ==========================================
+    window.onload = function() {
+        loadFavorites(); 
+        showRandomMeme();
+        document.getElementById('ui-station-name').innerText = getFunLoading();
+        checkDayType();
+        initMenu();
+        startLocationProcess();
+        initGlobalClickListener();
+
+        // 啟動瀏覽計數
+        initViewCounter();
+
+        setInterval(() => {
+            console.log("觸發自動重新定位 (60s)...");
+            startLocationProcess(true); 
+        }, AUTO_REFRESH_SEC * 1000);
+    };
+
+    // ==========================================
+    // 瀏覽計數器
+    // ==========================================
+    function initViewCounter() {
+        const counterEl = document.getElementById('view-counter');
+        let domain = window.location.hostname;
+        if (domain === 'localhost' || domain === '127.0.0.1' || !domain) {
+            domain = 'mrt_local_test_key_v2'; 
+        } else {
+            domain = domain.replace(/\./g, '_');
+        }
+        const namespace = domain; 
+        const key = "visits_v1";
+        const apiUrl = `https://api.counterapi.dev/v1/${namespace}/${key}/up`;
+        
+        fetch(apiUrl)
+            .then(response => response.json())
+            .then(data => {
+                if (typeof data.count !== 'undefined') {
+                    const formattedNum = data.count.toLocaleString();
+                    counterEl.innerText = formattedNum;
+                    counterEl.classList.remove('loading');
+                } else {
+                    throw new Error("Invalid response format");
+                }
+            })
+            .catch(err => {
+                console.warn("計數器 API 錯誤:", err);
+                counterEl.innerText = "統計中"; 
+                counterEl.classList.remove('loading');
+                counterEl.style.background = "#999"; 
+            });
+    }
+
+    // ==========================================
+    // 2. localStorage 與 最愛邏輯
+    // ==========================================
+    function loadFavorites() {
+        try {
+            const json = localStorage.getItem("fav_stations");
+            if (json) {
+                favoriteStations = JSON.parse(json);
+            } else {
+                favoriteStations = [];
+            }
+        } catch (e) {
+            console.error("無法讀取最愛紀錄", e);
+            favoriteStations = [];
+        }
+    }
+
+    function saveFavorites() {
+        try {
+            localStorage.setItem("fav_stations", JSON.stringify(favoriteStations));
+        } catch (e) {
+            console.error("無法寫入最愛紀錄", e);
+        }
+    }
+
+    window.toggleFavorite = function(e, stationName) {
+        e.stopPropagation(); 
+        
+        const idx = favoriteStations.indexOf(stationName);
+        if (idx > -1) {
+            favoriteStations.splice(idx, 1); 
+        } else {
+            favoriteStations.push(stationName); 
+        }
+        
+        saveFavorites();
+        initMenu(); 
+    }
+
+    // ==========================================
+    // 3. 側邊選單與定位邏輯
+    // ==========================================
+    function toggleMenu() {
+        const menu = document.getElementById('side-menu');
+        const backdrop = document.getElementById('menu-backdrop');
+        
+        if (menu.classList.contains('open')) {
+            menu.classList.remove('open');
+            backdrop.classList.remove('active');
+        } else {
+            menu.classList.add('open');
+            backdrop.classList.add('active');
+        }
+    }
+
+    function checkFirstTimeTour() {
+        const hasSeen = localStorage.getItem("has_seen_tour");
+        
+        if (!hasSeen) {
+            setTimeout(() => {
+                startTour();
+                localStorage.setItem("has_seen_tour", "true");
+            }, 800);
+        }
+    }
+
+    function initMenu() {
+        const container = document.getElementById('menu-lines-container');
+        container.innerHTML = "";
+
+        // === A. 渲染「我的最愛」區塊 ===
+        if (favoriteStations.length > 0) {
+            const favSection = document.createElement('div');
+            favSection.className = 'favorites-section';
+            
+            let favHtml = `
+                <ul class="favorites-list">
+            `;
+
+            favoriteStations.forEach(name => {
+                favHtml += `
+                    <li onclick="selectStation('${name}')">
+                        <span>${name}</span>
+                        <span class="star-btn active" onclick="toggleFavorite(event, '${name}')">★</span>
+                    </li>
+                `;
+            });
+
+            favHtml += `</ul>`;
+            favSection.innerHTML = favHtml;
+            container.appendChild(favSection);
+        }
+
+        // === B. 渲染所有路線 ===
+        MENU_MAPPING.forEach(item => {
+            let configKey = item.key;
+            if (!METRO_CONFIG[configKey] && configKey === 'airport') configKey = 't'; 
+            
+            const lineConfig = METRO_CONFIG[configKey];
+            if (lineConfig) {
+                const lineItem = document.createElement('div');
+                lineItem.className = 'menu-line-item';
+                
+                const headerHtml = `
+                    <div class="line-header" onclick="toggleLine(this)">
+                        <div style="display:flex; align-items:center;">
+                            <span class="line-indicator" style="background-color: ${lineConfig.color}"></span>
+                            ${item.label}
+                        </div>
+                        <span class="arrow">▶</span>
+                    </div>
+                    <ul class="station-list">
+                        ${lineConfig.stations.map(st => {
+                            const isFav = favoriteStations.includes(st.name);
+                            const starChar = isFav ? '★' : '☆';
+                            const activeClass = isFav ? 'active' : '';
+
+                            return `
+                                <li onclick="selectStation('${st.name}')">
+                                    <span>${st.name}</span>
+                                    <span class="star-btn ${activeClass}" onclick="toggleFavorite(event, '${st.name}')">${starChar}</span>
+                                </li>
+                            `;
+                        }).join('')}
+                    </ul>
+                `;
+                lineItem.innerHTML = headerHtml;
+                container.appendChild(lineItem);
+            }
+        });
+    }
+
+    window.toggleLine = function(element) {
+        element.parentElement.classList.toggle('expanded');
+    }
+
+    window.selectStation = function(name) {
+        document.getElementById('status-text').innerHTML = "手動選擇模式";
+        document.getElementById('ui-station-name').innerText = name;
+        buildCards(name);
+        toggleMenu();
+        currentPriorityLevel = 99; 
+    }
+
+    // ==========================================
+    // 4. 定位核心
+    // ==========================================
+    const PRIORITY = { NONE: 0, CACHE: 1, NETWORK: 2, GPS: 3 };
+    let currentPriorityLevel = 0; 
+
+    function startLocationProcess(isBackgroundRefresh = false) {
+        if (currentPriorityLevel === 99 && isBackgroundRefresh) return;
+
+        if (!isBackgroundRefresh) {
+            loadStartTime = Date.now();
+            currentPriorityLevel = PRIORITY.NONE; 
+        }
+
+        runStrategy(PRIORITY.CACHE, { timeout: 1000, maximumAge: Infinity }, isBackgroundRefresh);
+        runStrategy(PRIORITY.NETWORK, { timeout: 10000, maximumAge: 0 }, isBackgroundRefresh);
+        runGPSStrategy(isBackgroundRefresh);
+    }
+
+    function runStrategy(level, options, isBackgroundRefresh) {
+        if (!navigator.geolocation) return;
+        navigator.geolocation.getCurrentPosition(
+            (pos) => { tryUpdateLocation(pos, level, isBackgroundRefresh); },
+            (err) => { console.log(`[等級${level}] 失敗:`, err.message); },
+            options
+        );
+    }
+
+    function runGPSStrategy(isBackgroundRefresh) {
+        if (!navigator.geolocation) return;
+        navigator.geolocation.getCurrentPosition(
+            (pos) => { tryUpdateLocation(pos, PRIORITY.GPS, isBackgroundRefresh); },
+            (err) => {
+                if (err.code !== err.PERMISSION_DENIED) {
+                    setTimeout(() => { runGPSStrategy(isBackgroundRefresh); }, 2000);
+                } else {
+                    document.getElementById('status-text').innerHTML = "<span style='color:red'>定位被拒絕</span>";
+                    handleLocationSuccess(25.0463, 121.5175, isBackgroundRefresh); // 預設北車
+                }
+            },
+            { enableHighAccuracy: true, timeout: 30000, maximumAge: 0 }
+        );
+    }
+
+    function tryUpdateLocation(pos, level, isBackgroundRefresh) {
+        if (currentPriorityLevel === 99) return;
+        if (level > currentPriorityLevel) {
+            currentPriorityLevel = level;
+            handleLocationSuccess(pos.coords.latitude, pos.coords.longitude, isBackgroundRefresh);
+        }
+    }
+
+    function handleLocationSuccess(lat, lon, isBackgroundRefresh) {
+        const elapsed = Date.now() - loadStartTime;
+        let remainingTime = 0;
+        if (!isBackgroundRefresh) remainingTime = Math.max(0, MIN_LOADING_MS - elapsed);
+        setTimeout(() => { autoLocate(lat, lon); }, remainingTime);
+    }
+    
+    function checkDayType() {
+        let now = new Date();
+        if (now.getHours() < 2) now.setDate(now.getDate() - 1);
+        const d = now.getDay();
+        const isWeekend = (d === 0 || d === 6);
+        appState.dayType = isWeekend ? 'weekend' : 'weekday';
+        document.getElementById('day-type-badge').innerText = isWeekend ? "假日時刻" : "平日時刻";
+    }
+
+    function autoLocate(lat, lon) {
+        if (currentPriorityLevel === 99) return;
+
+        let minD = Infinity;
+        let bestName = "";
+
+        for (const config of Object.values(METRO_CONFIG)) {
+            config.stations.forEach(st => {
+                const d = getDist(lat, lon, st.lat, st.lon);
+                if (d < minD) { minD = d; bestName = st.name; }
+            });
+        }
+        if (minD > 1) minD *= 1.18;
+
+        document.getElementById('status-text').innerHTML = 
+            `距離 ${minD.toFixed(1)} km<br>` +
+            `<span style="font-size: 0.85em; opacity: 0.9;">步行約 ${Math.ceil(minD*14)} 分 / 車程約 ${Math.ceil(minD*6)} 分</span>`;
+
+        if (isFirstLoad || document.getElementById('ui-station-name').innerText !== bestName) {
+            document.getElementById('ui-station-name').innerText = bestName;
+            buildCards(bestName);
+            
+            if (isFirstLoad) {
+                 checkFirstTimeTour();
+            }
+
+            isFirstLoad = false;
+        } else {
+            if (appState.activeCards) appState.activeCards.forEach(c => renderTimes(c));
+        }
+    }
+
+    function getDist(lat1, lon1, lat2, lon2) {
+        const R = 6371, p = Math.PI/180;
+        const a = 0.5 - Math.cos((lat2-lat1)*p)/2 + Math.cos(lat1*p)*Math.cos(lat2*p)*(1-Math.cos((lon2-lon1)*p))/2;
+        return 2 * R * Math.asin(Math.sqrt(a));
+    }
+
+    function showRandomMeme() {
+        if (typeof window.MEME_DATA !== 'undefined' && Array.isArray(window.MEME_DATA) && window.MEME_DATA.length > 0) {
+            document.getElementById('meme-display').src = window.MEME_DATA[Math.floor(Math.random() * window.MEME_DATA.length)];
+        }
+    }
+
+    // ==========================================
+    // 5. 建立卡片
+    // ==========================================
+    function buildCards(stationName) {
+        const scroller = document.getElementById('scroller');
+        const badgesDiv = document.getElementById('ui-badges');
+        scroller.innerHTML = "";
+        badgesDiv.innerHTML = "";
+        appState.activeCards = [];
+
+        const matched = [];
+        for (const [key, config] of Object.entries(METRO_CONFIG)) {
+            const st = config.stations.find(s => s.name === stationName);
+            if (st) matched.push({ key, config, st });
+        }
+
+        if (matched.length === 0) {
+            scroller.innerHTML = "<div class='empty-msg'>查無此站資料</div>";
+            return;
+        }
+
+        const isCrowded = matched.length > 2;
+
+        matched.forEach((item) => {
+            const badge = document.createElement('div');
+            badge.className = 'station-id-btn';
+            badge.innerText = isCrowded ? item.st.id.replace(/[0-9]/g, '') : item.st.id;
+            badge.style.backgroundColor = item.config.color;
+            badge.onclick = () => {
+                const target = document.getElementById('card-' + item.key);
+                if(target) target.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+            };
+            badgesDiv.appendChild(badge);
+
+            const card = document.createElement('div');
+            card.className = 'line-card';
+            card.id = 'card-' + item.key;
+            card.dataset.color = item.config.color;
+            card.style.borderColor = item.config.color;
+
+            let dirId = item.config.directions[0].id;
+            if (item.config.directions[0].excludeStations.includes(stationName)) {
+                dirId = item.config.directions[1].id;
+            }
+
+            const cardState = {
+                lineKey: item.key, config: item.config, station: item.st, currentDir: dirId, dom: card
+            };
+            appState.activeCards.push(cardState);
+
+            card.innerHTML = `<div class="direction-buttons"></div><ul class="time-list"><li class="empty-msg">${getFunLoading()}</li></ul>`;
+            scroller.appendChild(card);
+            renderButtons(cardState);
+            renderTimes(cardState);
+        });
+
+        initObserver();
+    }
+
+    function renderButtons(cardState) {
+        const div = cardState.dom.querySelector('.direction-buttons');
+        div.innerHTML = "";
+        cardState.config.directions.forEach(d => {
+            if (d.excludeStations.includes(cardState.station.name)) return;
+            let label = d.label;
+            if (cardState.lineKey === 'orange' && d.id === 'north') {
+                if (cardState.station.branch === 'huilong') label = "往 迴龍";
+                else if (cardState.station.branch === 'luzhou') label = "往 蘆洲";
+            }
+            const btn = document.createElement('button');
+            btn.className = 'btn';
+            btn.innerText = label;
+            if (d.id === cardState.currentDir) {
+                btn.classList.add('active');
+                btn.style.backgroundColor = cardState.config.color;
+            }
+            btn.onclick = () => {
+                cardState.currentDir = d.id;
+                renderButtons(cardState);
+                renderTimes(cardState);
+            };
+            div.appendChild(btn);
+        });
+    }
+
+    function renderTimes(cardState) {
+        const ul = cardState.dom.querySelector('.time-list');
+        ul.innerHTML = "";
+        const dirConfig = cardState.config.directions.find(d => d.id === cardState.currentDir);
+        if (!dirConfig) return;
+        const sources = dirConfig.sources[appState.dayType];
+        if (!sources) { ul.innerHTML="<li>無資料設定</li>"; return; }
+
+        let trains = [];
+        
+        // 1. 抓取資料並給予分類標籤 (Type)
+        sources.forEach(varName => {
+            if (window[varName] && window[varName][cardState.station.id]) {
+                const raw = window[varName][cardState.station.id].times;
+                
+                let type = "N"; // Default Normal
+                
+                // --- Orange Line Logic ---
+                if (cardState.lineKey === 'orange') {
+                    if (varName.includes("LUZHOU")) {
+                        type = varName.includes("RETURN") ? "L_RET" : "L";
+                    } else if (varName.includes("HUILONG")) {
+                        type = varName.includes("RETURN") ? "H_RET" : "H";
+                    } else if (varName.includes("NANSHIJIAO")) {
+                        type = "O_SOUTH"; 
+                    }
+                }
+                
+                // --- Airport MRT Logic (Purple) ---
+                else if (cardState.lineKey === 'purple') {
+                    if (varName.includes("EXPRESS_PLUS")) type = "TY_EXP_P";
+                    else if (varName.includes("EXPRESS")) type = "TY_EXP";
+                    else if (varName.includes("COMMUTER_SKIP")) type = "TY_COM_S";
+                    else if (varName.includes("AIRPORT_SERVICE")) type = "TY_APT";
+                    else if (varName.includes("COMMUTER")) type = "TY_COM";
+                    else type = "TY_COM"; 
+                }
+
+                raw.forEach(t => trains.push({ time: t, type }));
+            }
+        });
+
+        if (trains.length === 0) { ul.innerHTML = "<li class='empty-msg'>未取得時刻</li>"; return; }
+
+        const unique = new Map();
+        trains.forEach(t => unique.set(t.time + "_" + t.type, t)); 
+        const sorted = Array.from(unique.values()).sort((a,b)=>a.time - b.time);
+
+        const now = new Date();
+        let nowMins = now.getHours() * 60 + now.getMinutes();
+        if (nowMins < 120) nowMins += 1440;
+        const upcoming = sorted.filter(t => t.time >= nowMins).slice(0, 8);
+
+        if (upcoming.length === 0) { ul.innerHTML = "<li class='empty-msg'>本日已無發車</li>"; return; }
+
+        upcoming.forEach(item => {
+            let h = Math.floor(item.time / 60);
+            let m = item.time % 60;
+            if(h>=24) h-=24;
+            const timeStr = `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}`;
+            let diff = item.time - nowMins;
+            let status = (diff<=0) ? "進站中" : `約 ${diff} 分`;
+            let isRed = (diff<=10 || diff<=0);
+            
+            // 2. 產生標籤 HTML
+            let tag = "";
+            
+            // 橘線標籤 (修改處：增加支線判斷)
+            if (cardState.lineKey === 'orange') {
+                // 判斷當前車站是否位於支線
+                const isHuilongBranch = (cardState.station.branch === 'huilong');
+                const isLuzhouBranch = (cardState.station.branch === 'luzhou');
+
+                // 邏輯：
+                // 1. 如果車是「往迴龍」(H)，但人已經在「迴龍支線」(isHuilongBranch) 上，則不顯示標籤。
+                // 2. 如果車是「往蘆洲」(L)，但人已經在「蘆洲支線」(isLuzhouBranch) 上，則不顯示標籤。
+                
+                if (item.type === 'H' && !isHuilongBranch) {
+                    tag = `<span class="dest-tag tag-huilong">往迴龍</span>`;
+                } 
+                else if (item.type === 'L' && !isLuzhouBranch) {
+                    tag = `<span class="dest-tag tag-luzhou">往蘆洲</span>`;
+                } 
+                else if (item.type === 'H_RET') {
+                    tag = `<span class="dest-tag tag-return">迴龍回籠</span>`;
+                } 
+                else if (item.type === 'L_RET') {
+                    tag = `<span class="dest-tag tag-return">蘆洲回籠</span>`;
+                }
+            } 
+            // 機場捷運互動標籤
+            else if (cardState.lineKey === 'purple') {
+                if (item.type === 'TY_EXP') tag = `<span class="dest-tag tag-ty-express tag-clickable" onclick="openStopsModal('TY_EXP')">直達車</span>`;
+                else if (item.type === 'TY_EXP_P') tag = `<span class="dest-tag tag-ty-express-plus tag-clickable" onclick="openStopsModal('TY_EXP_P')">尖峰增停直達車</span>`;
+                else if (item.type === 'TY_COM_S') tag = `<span class="dest-tag tag-ty-commuter-skip tag-clickable" onclick="openStopsModal('TY_COM_S')">尖峰跳站普通車</span>`;
+                else if (item.type === 'TY_APT') tag = `<span class="dest-tag tag-ty-airport tag-clickable" onclick="openStopsModal('TY_APT')">往機場</span>`;
+                else if (item.type === 'TY_COM') tag = `<span class="dest-tag tag-ty-commuter tag-clickable" onclick="openStopsModal('TY_COM')">普通車</span>`;
+            }
+
+            let estimateText = "";
+            if (cardState.lineKey === 'brown') {
+                estimateText = `<span style="font-size: 0.75rem; color: #999; margin-left: 6px; font-weight: normal;">(預估時間)</span>`;
+            }
+
+            const li = document.createElement('li');
+            li.className = 'time-item';
+            li.innerHTML = `<div><span class="time-val">${timeStr}</span>${estimateText}${tag}</div><span class="time-status ${isRed ? 'status-urgent' : ''}">${status}</span>`;
+            ul.appendChild(li);
+        });
+    }
+
+    // ==========================================
+    // 6. Modal 功能
+    // ==========================================
+    window.openStopsModal = function(type) {
+        const info = TY_STOPS_DATA[type];
+        if (info) {
+            // 分離標題與內容 (假設格式第一行為標題)
+            const parts = info.split('\n');
+            const title = parts[0].replace(/★|●/g, '').trim();
+            const body = parts.slice(1).join('\n');
+
+            document.getElementById('modal-title').innerText = title;
+            document.getElementById('modal-content').innerText = body;
+            document.getElementById('stops-modal').classList.add('active');
+        }
+    };
+
+    window.closeStopsModal = function(e) {
+        if (e) e.stopPropagation(); // 防止點擊內容時關閉
+        document.getElementById('stops-modal').classList.remove('active');
+    };
+
+    // ==========================================
+    // 7. 新手引導邏輯
+    // ==========================================
+    let currentTourStep = 0;
+    const TOUR_STEPS = [
+        { target: '#ui-station-name', text: "這裡顯示距離您目前位置<br>「最近的捷運站」<br>會隨定位自動更新", position: 'bottom' },
+        { target: '#ui-badges', text: "如果此站有轉乘路線<br>點擊上方標籤可切換查看", position: 'bottom' },
+        { target: '.line-card', text: "點擊螢幕左右兩側或滑動<br>也可以切換不同路線卡片喔！", position: 'top' },
+        { target: '.direction-buttons', text: "點擊這裡切換行駛方向", position: 'top' }
+    ];
+
+    function startTour() {
+        const menu = document.getElementById('side-menu');
+        const backdrop = document.getElementById('menu-backdrop');
+        menu.classList.remove('open');
+        backdrop.classList.remove('active');
+
+        currentTourStep = 0;
+        document.getElementById('tour-overlay').classList.add('active');
+        document.body.style.overflow = 'hidden'; 
+        renderTourStep();
+    }
+
+    function renderTourStep() {
+        const step = TOUR_STEPS[currentTourStep];
+        const spotlight = document.getElementById('tour-spotlight');
+        const textBox = document.getElementById('tour-text-box');
+        const content = document.getElementById('tour-content');
+
+        let targetEl = document.querySelector(step.target);
+        if (!targetEl || targetEl.offsetParent === null) {
+            nextTourStep();
+            return;
+        }
+
+        targetEl.scrollIntoView({ behavior: 'auto', block: 'center', inline: 'center' });
+        const rect = targetEl.getBoundingClientRect();
+
+        spotlight.style.width = rect.width + 'px';
+        spotlight.style.height = rect.height + 'px';
+        spotlight.style.top = rect.top + 'px';
+        spotlight.style.left = rect.left + 'px';
+
+        let arrowHtml = step.position === 'top' ? '<span class="tour-arrow">▼</span>' : '<span class="tour-arrow">▲</span>';
+        let textHtml = step.text;
+        
+        if (step.position === 'top') {
+            content.innerHTML = textHtml + "<br>" + arrowHtml;
+        } else {
+            content.innerHTML = arrowHtml + "<br>" + textHtml;
+        }
+
+        let textTop = 0;
+        if (step.position === 'top') {
+            textTop = rect.top - 100;
+        } else {
+            textTop = rect.bottom + 10;
+        }
+        
+        let textLeft = rect.left + (rect.width / 2) - 150; 
+        if (textLeft < 10) textLeft = 10;
+        if (textLeft + 300 > window.innerWidth) textLeft = window.innerWidth - 310;
+
+        textBox.style.top = textTop + 'px';
+        textBox.style.left = textLeft + 'px';
+    }
+
+    function nextTourStep() {
+        currentTourStep++;
+        if (currentTourStep >= TOUR_STEPS.length) {
+            document.getElementById('tour-overlay').classList.remove('active');
+            document.body.style.overflow = '';
+        } else {
+            renderTourStep();
+        }
+    }
+
+    function initObserver() {
+        const header = document.getElementById('ui-header');
+        const obs = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    header.style.backgroundColor = entry.target.dataset.color;
+                }
+            });
+        }, { root: document.getElementById('scroller'), threshold: 0.55 });
+        document.querySelectorAll('.line-card').forEach(c => obs.observe(c));
+    }
+
+    function initGlobalClickListener() {
+        document.addEventListener('click', (e) => {
+            if (e.target.closest('.header') || e.target.closest('.station-info-bar') || e.target.closest('.side-menu') || e.target.closest('.menu-backdrop') || e.target.closest('.tour-overlay') || e.target.closest('.modal-overlay')) return;
+            const cards = Array.from(document.querySelectorAll('.line-card'));
+            if (cards.length === 0) return;
+            const screenCenterX = window.innerWidth / 2;
+            let closestCard = null;
+            let minDiff = Infinity;
+            cards.forEach(card => {
+                const rect = card.getBoundingClientRect();
+                const diff = Math.abs((rect.left + rect.width / 2) - screenCenterX);
+                if (diff < minDiff) { minDiff = diff; closestCard = card; }
+            });
+            if (!closestCard) return;
+            const btnContainer = closestCard.querySelector('.direction-buttons');
+            if (btnContainer && e.clientY <= btnContainer.getBoundingClientRect().bottom) return;
+            const currentIndex = cards.indexOf(closestCard);
+            if (e.clientX < window.innerWidth / 4 && currentIndex > 0) {
+                cards[currentIndex - 1].scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+            } 
+            else if (e.clientX > (window.innerWidth * 3 / 4) && currentIndex < cards.length - 1) {
+                cards[currentIndex + 1].scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+            }
+        });
+    }
+
+    setInterval(() => {
+        if (appState && appState.activeCards) appState.activeCards.forEach(c => renderTimes(c));
+    }, 10000);
+
+</script>
+</body>
+</html>
